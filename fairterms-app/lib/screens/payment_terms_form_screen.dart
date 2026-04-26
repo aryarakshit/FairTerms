@@ -72,18 +72,32 @@ class _PaymentTermsFormScreenState
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    final profileId = ref.read(activeProfileIdProvider).valueOrNull;
+    setState(() => _isSubmitting = true);
+
+    // Resolve profile ID — provider may still be loading from SharedPreferences.
+    // Fall back to a live API fetch so a page-refresh or cold-start doesn't block submit.
+    String? profileId = ref.read(activeProfileIdProvider).valueOrNull;
     if (profileId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-              'No profile found. Please create your profile first.'),
-        ),
-      );
-      return;
+      try {
+        final profile = await ApiService.instance.getMyProfile();
+        profileId = profile?.profileId;
+        if (profileId != null && mounted) {
+          ref.read(activeProfileIdProvider.notifier).setId(profileId);
+        }
+      } catch (_) {}
     }
 
-    setState(() => _isSubmitting = true);
+    if (profileId == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No profile found. Please create your profile first.'),
+          ),
+        );
+        setState(() => _isSubmitting = false);
+      }
+      return;
+    }
 
     final request = AnalysisRequest(
       profileId: profileId,
@@ -110,6 +124,17 @@ class _PaymentTermsFormScreenState
       final analysisState = ref.read(analysisProvider);
       if (analysisState.analysisId != null) {
         context.pushReplacement('/analysis/${analysisState.analysisId}/loading');
+      } else {
+        // startAnalysis swallows errors into state.errorMessage instead of
+        // rethrowing — surface it so the click isn't silently lost.
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              analysisState.errorMessage ??
+                  'Failed to start analysis. Please try again.',
+            ),
+          ),
+        );
       }
     } catch (e) {
       if (!mounted) return;

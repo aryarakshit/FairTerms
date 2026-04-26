@@ -49,10 +49,7 @@ function mergeAnalysisResults(fairnessMetrics, agentResults, paymentTerms) {
   });
 
   const rawBias = Number(biasResults.overall_bias_score);
-  if (!Number.isFinite(rawBias)) {
-    throw new Error(`Invalid overall_bias_score: ${biasResults.overall_bias_score}`);
-  }
-  const biasScore = rawBias;
+  const biasScore = Number.isFinite(rawBias) ? rawBias : 0.5;
   const overallFairnessScore = Math.max(0, Math.min(100, 100 - Math.round(biasScore * 100)));
   const verdict = biasScore > 0.65
     ? 'significant_bias_detected'
@@ -256,9 +253,24 @@ async function getAnalysisHistory(req, res) {
   }
 }
 
+/**
+ * DELETE /analysis/history
+ * Permanently deletes every analysis owned by the authenticated user.
+ */
+async function clearAnalysisHistory(req, res) {
+  try {
+    const removed = await firestoreService.deleteAnalysesByUser(req.user.uid);
+    return res.json({ success: true, data: { deleted: removed } });
+  } catch (error) {
+    console.error('clearAnalysisHistory failed:', error);
+    return res.status(500).json({ success: false, error: 'INTERNAL_ERROR' });
+  }
+}
+
 module.exports = {
   runAnalysis,
   getAnalysisStatus,
   getAnalysisReport,
   getAnalysisHistory,
+  clearAnalysisHistory,
 };

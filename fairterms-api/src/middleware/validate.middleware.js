@@ -108,7 +108,7 @@ function validateAnalysisRun(req, res, next) {
 
     if (
         payload.payment_terms_offered_to_sme &&
-        !isNonEmptyString(payload.payment_terms_offered_to_sme, 100)
+        !isNonEmptyString(payload.payment_terms_offered_to_sme, 500)
     ) {
         return res.status(400).json({ success: false, error: 'INVALID_INPUT', message: 'Invalid payment terms label' });
     }

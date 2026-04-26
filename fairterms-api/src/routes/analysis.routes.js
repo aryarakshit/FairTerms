@@ -8,6 +8,7 @@ const { validateAnalysisRun, validateResourceIdParam } = require('../middleware/
 router.post('/run', authenticate, validateAnalysisRun, analysisController.runAnalysis);
 // /history must be defined before /:id routes so Express doesn't treat "history" as an ID
 router.get('/history', authenticate, analysisController.getAnalysisHistory);
+router.delete('/history', authenticate, analysisController.clearAnalysisHistory);
 router.get('/:id/status', authenticate, validateResourceIdParam, analysisController.getAnalysisStatus);
 router.get('/:id/report', authenticate, validateResourceIdParam, analysisController.getAnalysisReport);
 router.get('/:id/grievance', authenticate, validateResourceIdParam, grievanceController.getGrievance);

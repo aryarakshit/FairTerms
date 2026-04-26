@@ -14,6 +14,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/sme_profile.dart';
+import '../providers/analysis_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/profile_provider.dart';
 import '../services/api_service.dart';
@@ -524,6 +525,51 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  Future<void> _confirmClearAnalysisHistory() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Clear analysis history?'),
+        content: const Text(
+          'This permanently deletes every past bias report on your account. This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete all'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final removed = await ApiService.instance.clearAnalysisHistory();
+      if (!mounted) return;
+      ref.invalidate(analysisHistoryProvider);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            removed == 0
+                ? 'No analyses to delete.'
+                : 'Deleted $removed analysis report${removed == 1 ? '' : 's'}.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('Failed to clear history: $e')),
+      );
+    }
+  }
+
   Widget _buildDangerTab() {
     return _RefinedSettingsGroup(
       title: 'Danger zone',
@@ -534,7 +580,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           desc: 'Permanently delete all your past bias reports',
           child: _GhostButton(
             'Clear data',
-            onTap: () {},
+            onTap: _confirmClearAnalysisHistory,
             isDanger: true,
           ),
         ),

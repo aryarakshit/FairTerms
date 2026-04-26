@@ -84,7 +84,45 @@ class _AnalysisLoadingScreenState extends ConsumerState<AnalysisLoadingScreen>
   void _navigateToReport(String analysisId) {
     if (_hasNavigated || !mounted) return;
     _hasNavigated = true;
+    // Refresh dashboard/history list so the new analysis shows up without a reload.
+    ref.invalidate(analysisHistoryProvider);
     context.pushReplacement('/analysis/$analysisId/report');
+  }
+
+  Future<void> _confirmDiscard() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          'Discard analysis?',
+          style: GoogleFonts.fraunces(
+            fontSize: 20,
+            fontWeight: FontWeight.w400,
+            color: AppColors.ink,
+          ),
+        ),
+        content: Text(
+          'Stop generating this report and return to the dashboard. The in-progress analysis will be discarded.',
+          style: GoogleFonts.inter(fontSize: 14, color: AppColors.inkMuted),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Keep running'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Discard'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    _hasNavigated = true;
+    ref.read(analysisProvider.notifier).reset();
+    if (!mounted) return;
+    context.go(AppConstants.routeDashboard);
   }
 
   void _showTimeoutDialog() {
@@ -298,6 +336,23 @@ class _AnalysisLoadingScreenState extends ConsumerState<AnalysisLoadingScreen>
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 20),
+                  TextButton.icon(
+                    onPressed: analysisState.isProcessing ? _confirmDiscard : null,
+                    icon: const Icon(Icons.close, size: 16),
+                    label: Text(
+                      'Discard analysis',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.error,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
+                    ),
                   ),
                   const Spacer(),
                 ],

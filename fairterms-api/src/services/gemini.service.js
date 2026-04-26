@@ -372,6 +372,10 @@ async function runMultiAgentPipeline(smeProfile, paymentTerms, fairnessMetrics) 
     return { biasResults, report, grievance };
   } catch (error) {
     console.error('Multi-agent pipeline failed:', error.message);
+    if (ALLOW_MOCK_AI) {
+      console.warn('Falling back to mock pipeline response (ALLOW_MOCK_GEMINI=true).');
+      return MOCK_PIPELINE_RESPONSE;
+    }
     throw error;
   }
 }

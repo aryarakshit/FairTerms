@@ -31,6 +31,9 @@ function validateCorsOrigin(origin, callback) {
 
 // Middleware
 app.disable('x-powered-by');
+// Cloud Run sits behind Google's load balancer; trust the X-Forwarded-For header
+// so the rate limiter gets the real client IP, not the shared proxy IP.
+app.set('trust proxy', 1);
 app.use(helmet());
 app.use(cors({
   origin: validateCorsOrigin,
@@ -38,10 +41,10 @@ app.use(cors({
 }));
 app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || '50kb' }));
 
-// Rate limiting
+// Rate limiting — per real client IP (requires trust proxy above)
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
+  windowMs: 15 * 60 * 1000,
+  max: 500,
 });
 app.use(limiter);
 

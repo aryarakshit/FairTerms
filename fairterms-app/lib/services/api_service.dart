@@ -256,6 +256,19 @@ class ApiService {
     );
   }
 
+  /// Permanently deletes all analyses for the current user.
+  /// Returns the number of records removed.
+  Future<int> clearAnalysisHistory() async {
+    if (_shouldUseOffline) return 0;
+    final headers = await _buildHeaders();
+    final response = await _client.delete(
+      _buildUri('/analysis/history'),
+      headers: headers,
+    );
+    final data = _parseResponse(response);
+    return (data['deleted'] as num?)?.toInt() ?? 0;
+  }
+
   List<AnalysisSummary> offlineHistory() {
     return [
       AnalysisSummary(

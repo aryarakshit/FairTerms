@@ -299,6 +299,36 @@ async function deleteAnalysis(analysisId) {
   await db.collection('analyses').doc(analysisId).delete();
 }
 
+/**
+ * Hard-deletes every analysis owned by the given user. Returns the count removed.
+ */
+async function deleteAnalysesByUser(userId) {
+  if (USE_MOCK_FIRESTORE) {
+    let removed = 0;
+    for (const [id, doc] of _mock.analyses.entries()) {
+      if (doc.user_id === userId) {
+        _mock.analyses.delete(id);
+        removed++;
+      }
+    }
+    if (removed > 0) _saveMockData();
+    return removed;
+  }
+  const snapshot = await db.collection('analyses')
+    .where('user_id', '==', userId)
+    .get();
+  if (snapshot.empty) return 0;
+
+  // Firestore batches cap at 500 writes — chunk if necessary.
+  const docs = snapshot.docs;
+  for (let i = 0; i < docs.length; i += 450) {
+    const batch = db.batch();
+    docs.slice(i, i + 450).forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+  }
+  return docs.length;
+}
+
 module.exports = {
   saveSMEProfile,
   getSMEProfile,
@@ -312,4 +342,5 @@ module.exports = {
   getAllAnalyses,
   getAllProfiles,
   deleteAnalysis,
+  deleteAnalysesByUser,
 };
