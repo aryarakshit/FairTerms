@@ -1,0 +1,11 @@
+# FairTerms Fairness Engine — Dependencies
+# Pinned to versions with Python 3.14 wheels (no source builds required)
+fastapi>=0.115.6
+uvicorn[standard]>=0.34.0
+pydantic>=2.10.4
+pydantic-settings>=2.7.1
+pandas>=2.2.3
+numpy>=2.2.1
+scipy>=1.15.1
+google-cloud-bigquery>=3.27.0
+python-dotenv>=1.0.1
