@@ -21,17 +21,35 @@ class ProfileFormScreen extends ConsumerStatefulWidget {
 class _ProfileFormScreenState extends ConsumerState<ProfileFormScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  final _businessNameCtrl = TextEditingController();
-  final _ownerNameCtrl = TextEditingController();
-  final _gstCtrl = TextEditingController();
-  final _phoneCtrl = TextEditingController();
-  final _yearsCtrl = TextEditingController();
+  late final TextEditingController _businessNameCtrl;
+  late final TextEditingController _ownerNameCtrl;
+  late final TextEditingController _gstCtrl;
+  late final TextEditingController _phoneCtrl;
+  late final TextEditingController _yearsCtrl;
 
-  final _pincodeCtrl = TextEditingController();
-  final _cityCtrl = TextEditingController();
+  late final TextEditingController _pincodeCtrl;
+  late final TextEditingController _cityCtrl;
 
-  final _revenueCtrl = TextEditingController();
-  final _employeeCtrl = TextEditingController();
+  late final TextEditingController _revenueCtrl;
+  late final TextEditingController _employeeCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    // We don't use ref.watch here because initState is called only once.
+    // It's safe to read the current state to prepopulate controllers.
+    final state = ref.read(profileFormProvider);
+    
+    _businessNameCtrl = TextEditingController(text: state.businessName);
+    _ownerNameCtrl = TextEditingController(text: state.ownerName);
+    _gstCtrl = TextEditingController(text: state.gstNumber);
+    _phoneCtrl = TextEditingController(text: state.phoneNumber);
+    _yearsCtrl = TextEditingController(text: state.yearsInOperation);
+    _pincodeCtrl = TextEditingController(text: state.pincode);
+    _cityCtrl = TextEditingController(text: state.city);
+    _revenueCtrl = TextEditingController(text: state.annualRevenueInr);
+    _employeeCtrl = TextEditingController(text: state.employeeCount);
+  }
 
   @override
   void dispose() {
@@ -49,6 +67,8 @@ class _ProfileFormScreenState extends ConsumerState<ProfileFormScreen> {
 
   Future<void> _handleNext() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    _syncControllersToState();
 
     final notifier = ref.read(profileFormProvider.notifier);
     final state = ref.read(profileFormProvider);
@@ -294,9 +314,11 @@ class _Step1 extends StatelessWidget {
             label: 'Business Name *',
             hint: 'e.g., Sharma Textiles Pvt. Ltd.',
             controller: businessNameCtrl,
-            validator: (v) => (v == null || v.trim().isEmpty)
-                ? 'Business name is required'
-                : null,
+            validator: (v) {
+              if (v == null || v.trim().isEmpty) return 'Business name is required';
+              if (v.trim().length < 3) return 'Enter at least 3 characters';
+              return null;
+            },
           ),
           const SizedBox(height: 16),
           _FormField(

@@ -224,7 +224,7 @@ class _BiasReportScreenState extends ConsumerState<BiasReportScreen>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Dashboard  /  Analyses  /  ${report.analysisId}',
+                            'Dashboard  /  Analyses  /  ${report.buyerName.isNotEmpty ? report.buyerName : report.analysisId}',
                             style: GoogleFonts.inter(
                               fontSize: 12,
                               color: AppColors.inkFaint,
@@ -251,7 +251,7 @@ class _BiasReportScreenState extends ConsumerState<BiasReportScreen>
                                     ),
                                     SizedBox(height: 14),
                                     Text(
-                                      report.analysisId,
+                                      report.buyerName.isNotEmpty ? report.buyerName : report.analysisId,
                                       style: GoogleFonts.fraunces(
                                         fontSize: 56,
                                         fontWeight: FontWeight.w300,
@@ -642,16 +642,21 @@ class _FactorSection extends StatelessWidget {
             color: AppColors.background,
           ),
           child: Column(
-            children: factors.isEmpty
-                ? [
-                    Text(
-                      'No factors flagged.',
-                      style: GoogleFonts.inter(color: AppColors.inkFaint),
-                    ),
-                  ]
-                : factors.asMap().entries.map((e) {
+            children: () {
+              final significant = factors
+                  .where((f) => (f.impactScore * 25).toInt() != 0)
+                  .toList();
+              if (significant.isEmpty) {
+                return [
+                  Text(
+                    'No significant factors flagged.',
+                    style: GoogleFonts.inter(color: AppColors.inkFaint),
+                  ),
+                ];
+              }
+              return significant.asMap().entries.map((e) {
                     final f = e.value;
-                    final isLast = e.key == factors.length - 1;
+                    final isLast = e.key == significant.length - 1;
                     final weight = (f.impactScore * 25).toInt();
 
                     Color barColor = AppColors.primary;
@@ -723,7 +728,8 @@ class _FactorSection extends StatelessWidget {
                           ),
                       ],
                     );
-                  }).toList(),
+                  }).toList();
+            }(),
           ),
         ),
       ],
@@ -901,33 +907,51 @@ class _InterestSection extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             color: AppColors.background,
           ),
-          child: GridView.count(
-            crossAxisCount: 4,
-            mainAxisSpacing: 16,
-            crossAxisSpacing: 16,
-            shrinkWrap: true,
-            physics: NeverScrollableScrollPhysics(),
-            childAspectRatio: 1.6,
-            children: [
-              _CalcCard(
-                label: 'Principal',
-                value: '₹${fmtInr.format(interest.principalInr)}',
-              ),
-              _CalcCard(
-                label: 'Delay',
-                value: '${interest.delayDays} days',
-              ),
-              _CalcCard(
-                label: 'RBI + 3%',
-                value: '${interest.applicableRate.toStringAsFixed(2)}%',
-              ),
-              _CalcCard(
-                label: 'Interest owed',
-                value: '₹${fmtInr.format(interest.compoundInterestInr)}',
-                isTotal: true,
-              ),
-            ],
-          ),
+          child: interest.delayDays == 0
+              ? Row(
+                  children: [
+                    Icon(Icons.check_circle_outline,
+                        color: AppColors.primary, size: 22),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'No interest owed — buyer pays within MSMED 45-day window',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          color: AppColors.inkMuted,
+                          height: 1.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              : GridView.count(
+                  crossAxisCount: 4,
+                  mainAxisSpacing: 16,
+                  crossAxisSpacing: 16,
+                  shrinkWrap: true,
+                  physics: NeverScrollableScrollPhysics(),
+                  childAspectRatio: 1.6,
+                  children: [
+                    _CalcCard(
+                      label: 'Principal',
+                      value: '₹${fmtInr.format(interest.principalInr)}',
+                    ),
+                    _CalcCard(
+                      label: 'Delay',
+                      value: '${interest.delayDays} days',
+                    ),
+                    _CalcCard(
+                      label: 'RBI + 3%',
+                      value: '${interest.applicableRate.toStringAsFixed(2)}%',
+                    ),
+                    _CalcCard(
+                      label: 'Interest owed',
+                      value: '₹${fmtInr.format(interest.compoundInterestInr)}',
+                      isTotal: true,
+                    ),
+                  ],
+                ),
         ),
       ],
     );
@@ -1102,7 +1126,7 @@ class _ActionSection extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.start,
         children: [
           _SolidBtn(
-            label: 'File grievance with MSEFC',
+            label: 'File grievance on MSME Samadhaan',
             onPressed: () => context.push('/analysis/$analysisId/grievance'),
           ),
           SizedBox(width: 12),

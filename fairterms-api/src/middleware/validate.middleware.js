@@ -2,6 +2,8 @@
  * Simple validation middleware for common requests.
  */
 
+const logger = require('../utils/logger');
+
 const FIRESTORE_ID_PATTERN = /^[A-Za-z0-9_-]{6,128}$/;
 const GST_NUMBER_PATTERN = /^[0-9A-Z]{15}$/;
 const PINCODE_PATTERN = /^\d{6}$/;
@@ -23,11 +25,17 @@ function isNonEmptyString(value, maxLength = 255) {
 }
 
 function isPositiveInteger(value, min = 1, max = Number.MAX_SAFE_INTEGER) {
-    return Number.isInteger(value) && value >= min && value <= max;
+    if (value === null || value === undefined) return false;
+    if (typeof value === 'string' && value.trim() === '') return false;
+    const n = Number(value);
+    return Number.isInteger(n) && n >= min && n <= max;
 }
 
 function isFiniteNumberInRange(value, min, max) {
-    return typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max;
+    if (value === null || value === undefined) return false;
+    if (typeof value === 'string' && value.trim() === '') return false;
+    const n = Number(value);
+    return typeof n === 'number' && Number.isFinite(n) && n >= min && n <= max;
 }
 
 function validateResourceIdParam(req, res, next) {
@@ -53,14 +61,16 @@ function validateProfile(req, res, next) {
 
     if (
         !isNonEmptyString(profile.business_name, 150) ||
+        profile.business_name.length < 3 ||
         !isNonEmptyString(profile.owner_name, 150) ||
         !PINCODE_PATTERN.test(profile.pincode) ||
         !isNonEmptyString(profile.state, 100) ||
         !isNonEmptyString(profile.industry, 100) ||
-        !isPositiveInteger(req.body.annual_revenue_inr, 1, 10_000_000_000) ||
+        !isPositiveInteger(req.body.annual_revenue_inr, 1, Number.MAX_SAFE_INTEGER) ||
         !isPositiveInteger(req.body.employee_count, 1, 100_000) ||
         !isPositiveInteger(req.body.years_in_operation, 0, 200)
     ) {
+        logger.warn('Profile validation failed', { body: req.body });
         return res.status(400).json({ success: false, error: 'INVALID_INPUT', message: 'Missing required profile fields' });
     }
 
@@ -75,6 +85,9 @@ function validateProfile(req, res, next) {
     req.body = {
         ...req.body,
         ...profile,
+        annual_revenue_inr: Number(req.body.annual_revenue_inr),
+        employee_count: Number(req.body.employee_count),
+        years_in_operation: Number(req.body.years_in_operation),
     };
     next();
 }
@@ -92,9 +105,11 @@ function validateAnalysisRun(req, res, next) {
     if (
         !FIRESTORE_ID_PATTERN.test(payload.profile_id) ||
         !isNonEmptyString(payload.buyer_name, 150) ||
-        !isPositiveInteger(req.body.payment_terms_days, 1, 3650) ||
-        !isPositiveInteger(req.body.order_value_inr, 1, 10_000_000_000)
+        payload.buyer_name.length < 3 ||
+        !isPositiveInteger(req.body.payment_terms_days, 1, 365) ||
+        !isPositiveInteger(req.body.order_value_inr, 1, 1_000_000_000)
     ) {
+        logger.warn('Analysis run validation failed - required fields', { body: req.body });
         return res.status(400).json({ success: false, error: 'INVALID_INPUT', message: 'Missing required analysis fields' });
     }
 
@@ -115,8 +130,9 @@ function validateAnalysisRun(req, res, next) {
 
     if (
         req.body.sme_payment_to_suppliers_days !== undefined &&
-        !isPositiveInteger(req.body.sme_payment_to_suppliers_days, 0, 3650)
+        !isPositiveInteger(req.body.sme_payment_to_suppliers_days, 0, 365)
     ) {
+        logger.warn('Invalid supplier payment days', { value: req.body.sme_payment_to_suppliers_days });
         return res.status(400).json({ success: false, error: 'INVALID_INPUT', message: 'Invalid supplier payment days' });
     }
 
@@ -124,6 +140,7 @@ function validateAnalysisRun(req, res, next) {
         req.body.interest_rate_on_short_term_loan !== undefined &&
         !isFiniteNumberInRange(req.body.interest_rate_on_short_term_loan, 0, 100)
     ) {
+        logger.warn('Invalid short-term loan interest rate', { value: req.body.interest_rate_on_short_term_loan });
         return res.status(400).json({ success: false, error: 'INVALID_INPUT', message: 'Invalid short-term loan interest rate' });
     }
 
@@ -134,6 +151,10 @@ function validateAnalysisRun(req, res, next) {
     req.body = {
         ...req.body,
         ...payload,
+        payment_terms_days: Number(req.body.payment_terms_days),
+        order_value_inr: Number(req.body.order_value_inr),
+        sme_payment_to_suppliers_days: req.body.sme_payment_to_suppliers_days !== undefined ? Number(req.body.sme_payment_to_suppliers_days) : undefined,
+        interest_rate_on_short_term_loan: req.body.interest_rate_on_short_term_loan !== undefined ? Number(req.body.interest_rate_on_short_term_loan) : undefined,
     };
     next();
 }
@@ -146,7 +167,7 @@ function validateBenchmarkCompare(req, res, next) {
 
     if (
         !isNonEmptyString(industry, 100) ||
-        !isPositiveInteger(req.body.payment_terms_days, 1, 3650)
+        !isPositiveInteger(req.body.payment_terms_days, 1, 365)
     ) {
         return res.status(400).json({ success: false, error: 'INVALID_INPUT', message: 'industry and payment_terms_days are required' });
     }
@@ -155,11 +176,11 @@ function validateBenchmarkCompare(req, res, next) {
         return res.status(400).json({ success: false, error: 'INVALID_INPUT', message: 'Invalid state value' });
     }
 
-    if (annualRevenueMin !== undefined && !isPositiveInteger(annualRevenueMin, 1, 10_000_000_000)) {
+    if (annualRevenueMin !== undefined && !isPositiveInteger(annualRevenueMin, 1, Number.MAX_SAFE_INTEGER)) {
         return res.status(400).json({ success: false, error: 'INVALID_INPUT', message: 'Invalid minimum revenue' });
     }
 
-    if (annualRevenueMax !== undefined && !isPositiveInteger(annualRevenueMax, 1, 10_000_000_000)) {
+    if (annualRevenueMax !== undefined && !isPositiveInteger(annualRevenueMax, 1, Number.MAX_SAFE_INTEGER)) {
         return res.status(400).json({ success: false, error: 'INVALID_INPUT', message: 'Invalid maximum revenue' });
     }
 
@@ -175,6 +196,9 @@ function validateBenchmarkCompare(req, res, next) {
         ...req.body,
         industry,
         state,
+        payment_terms_days: Number(req.body.payment_terms_days),
+        annual_revenue_min: annualRevenueMin !== undefined ? Number(annualRevenueMin) : undefined,
+        annual_revenue_max: annualRevenueMax !== undefined ? Number(annualRevenueMax) : undefined,
     };
     next();
 }

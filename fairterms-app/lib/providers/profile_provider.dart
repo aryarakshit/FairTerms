@@ -180,7 +180,7 @@ class ProfileFormNotifier extends StateNotifier<ProfileFormState> {
 
 /// Provider for [ProfileFormNotifier].
 final profileFormProvider =
-    StateNotifierProvider<ProfileFormNotifier, ProfileFormState>(
+    StateNotifierProvider.autoDispose<ProfileFormNotifier, ProfileFormState>(
   (_) => ProfileFormNotifier(),
 );
 
@@ -222,6 +222,32 @@ final activeProfileIdProvider =
 final profileByIdProvider =
     FutureProvider.family<SmeProfile, String>((ref, profileId) async {
   return ApiService.instance.getProfile(profileId);
+});
+
+/// Resolves the current user's own profile, automatically setting activeProfileId
+/// if one is found on the server but not yet in memory.
+final myProfileProvider = FutureProvider<SmeProfile?>((ref) async {
+  final activeIdAsync = ref.watch(activeProfileIdProvider);
+  final activeId = activeIdAsync.valueOrNull;
+
+  if (activeId != null) {
+    try {
+      return await ref.watch(profileByIdProvider(activeId).future);
+    } catch (_) {
+      // If fetching by ID fails, clear it and try fetching "me"
+      ref.read(activeProfileIdProvider.notifier).clear();
+    }
+  }
+
+  try {
+    final profile = await ApiService.instance.getMyProfile();
+    if (profile != null && profile.profileId != null) {
+      ref.read(activeProfileIdProvider.notifier).setId(profile.profileId!);
+    }
+    return profile;
+  } catch (_) {
+    return null;
+  }
 });
 
 /// Provider for the profile photo (base64 encoded bytes).

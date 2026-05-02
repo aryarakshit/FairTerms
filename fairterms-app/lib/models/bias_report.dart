@@ -4,6 +4,7 @@ library;
 /// Top-level bias report returned by GET /analysis/:id/report.
 class BiasReport {
   final String analysisId;
+  final String buyerName;
   final int overallFairnessScore;
   final String verdict;
   final List<BiasFactor> biasFactors;
@@ -16,6 +17,7 @@ class BiasReport {
 
   const BiasReport({
     required this.analysisId,
+    required this.buyerName,
     required this.overallFairnessScore,
     required this.verdict,
     required this.biasFactors,
@@ -31,6 +33,7 @@ class BiasReport {
   factory BiasReport.fromJson(Map<String, dynamic> json) {
     return BiasReport(
       analysisId: json['analysis_id'] as String,
+      buyerName: json['buyer_name'] as String? ?? '',
       overallFairnessScore: json['overall_fairness_score'] as int,
       verdict: json['verdict'] as String,
       biasFactors: (json['bias_factors'] as List<dynamic>)
@@ -60,6 +63,7 @@ class BiasReport {
   Map<String, dynamic> toJson() {
     return {
       'analysis_id': analysisId,
+      'buyer_name': buyerName,
       'overall_fairness_score': overallFairnessScore,
       'verdict': verdict,
       'bias_factors': biasFactors.map((e) => e.toJson()).toList(),

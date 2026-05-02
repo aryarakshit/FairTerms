@@ -60,6 +60,16 @@ class AuthService {
     return _auth.signInWithCredential(credential);
   }
 
+  /// Creates a new user account with the given [email] and [password].
+  Future<UserCredential> signUpWithEmailAndPassword(String email, String password) async {
+    return _auth.createUserWithEmailAndPassword(email: email, password: password);
+  }
+
+  /// Signs in with the given [email] and [password].
+  Future<UserCredential> signInWithEmailAndPassword(String email, String password) async {
+    return _auth.signInWithEmailAndPassword(email: email, password: password);
+  }
+
   /// Returns the current user's Firebase ID token for API authentication.
   ///
   /// Forces token refresh if [forceRefresh] is true.

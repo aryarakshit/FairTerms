@@ -341,6 +341,7 @@ class ApiService {
   BiasReport offlineReport(String analysisId) {
     return BiasReport(
       analysisId: analysisId,
+      buyerName: 'Reliance Retail',
       overallFairnessScore: 42,
       verdict: 'significant_bias_detected',
       biasFactors: [

@@ -37,6 +37,12 @@ class SmeProfile {
 
   /// Creates an [SmeProfile] from a JSON map.
   factory SmeProfile.fromJson(Map<String, dynamic> json) {
+    int toInt(dynamic val) {
+      if (val is num) return val.toInt();
+      if (val is String) return int.tryParse(val) ?? 0;
+      return 0;
+    }
+
     return SmeProfile(
       profileId: json['profile_id'] as String?,
       businessName: (json['business_name'] as String?) ?? '',
@@ -45,13 +51,13 @@ class SmeProfile {
       city: (json['city'] as String?) ?? '',
       state: (json['state'] as String?) ?? '',
       industry: (json['industry'] as String?) ?? '',
-      annualRevenueInr: (json['annual_revenue_inr'] as num?)?.toInt() ?? 0,
-      employeeCount: (json['employee_count'] as num?)?.toInt() ?? 0,
-      yearsInOperation: (json['years_in_operation'] as num?)?.toInt() ?? 0,
+      annualRevenueInr: toInt(json['annual_revenue_inr']),
+      employeeCount: toInt(json['employee_count']),
+      yearsInOperation: toInt(json['years_in_operation']),
       gstNumber: json['gst_number'] as String?,
       phoneNumber: json['phone_number'] as String?,
       photoUrl: json['photo_url'] as String?,
-      createdAt: json['created_at'] as String?,
+      createdAt: json['created_at'] is String ? json['created_at'] as String : null,
     );
   }
 

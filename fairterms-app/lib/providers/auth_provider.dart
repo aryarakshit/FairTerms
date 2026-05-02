@@ -32,6 +32,22 @@ class SignInNotifier extends StateNotifier<AsyncValue<void>> {
     });
   }
 
+  /// Creates a new user account with email and password.
+  Future<void> signUpWithEmail(String email, String password) async {
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() async {
+      await AuthService.instance.signUpWithEmailAndPassword(email, password);
+    });
+  }
+
+  /// Signs in an existing user with email and password.
+  Future<void> signInWithEmail(String email, String password) async {
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() async {
+      await AuthService.instance.signInWithEmailAndPassword(email, password);
+    });
+  }
+
   /// Signs out the current user.
   Future<void> signOut() async {
     state = const AsyncValue.loading();

@@ -213,6 +213,7 @@ async function getAnalysisReport(req, res) {
       success: true,
       data: {
         analysis_id: analysis.analysis_id,
+        buyer_name: analysis.buyer_info?.name || '',
         overall_fairness_score: analysis.overall_fairness_score,
         verdict: analysis.verdict,
         bias_factors: analysis.bias_factors,
@@ -220,7 +221,9 @@ async function getAnalysisReport(req, res) {
         fairness_metrics: analysis.fairness_metrics,
         statistical_tests: analysis.statistical_tests,
         explanation: analysis.explanation,
-        interest_calculation: analysis.interest_calculation || null,
+        interest_calculation: analysis.payment_terms
+          ? reportEnrichmentService.buildInterestCalculation(analysis.payment_terms)
+          : (analysis.interest_calculation || null),
         tax_alert: analysis.tax_alert || null,
       },
     });

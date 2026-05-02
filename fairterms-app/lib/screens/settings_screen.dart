@@ -53,24 +53,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     super.initState();
     _nameCtrl.text = AuthService.instance.currentUserDisplayName;
     _emailCtrl.text = AuthService.instance.currentUserEmail;
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadProfileData());
+    
+    // Initial data sync
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _loadProfileData();
+    });
   }
 
   Future<void> _loadProfileData() async {
     if (!mounted) return;
-    final profileId = ref.read(activeProfileIdProvider).valueOrNull;
-    SmeProfile? profile;
-    try {
-      if (profileId != null) {
-        profile = await ApiService.instance.getProfile(profileId);
-      } else {
-        profile = await ApiService.instance.getMyProfile();
-        if (profile?.profileId != null && mounted) {
-          ref.read(activeProfileIdProvider.notifier).setId(profile!.profileId!);
-        }
-      }
-    } catch (_) {}
-
+    
+    // Trigger a fresh fetch from the provider
+    final profile = await ref.refresh(myProfileProvider.future);
+    
     if (!mounted) return;
 
     setState(() {
@@ -82,7 +77,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       }
 
       final matchedIndustry = AppConstants.industries.firstWhere(
-        (i) => i.toLowerCase() == profile!.industry.toLowerCase(),
+        (i) => i.toLowerCase() == profile.industry.toLowerCase(),
         orElse: () => _industry,
       );
       _businessNameCtrl.text = profile.businessName;

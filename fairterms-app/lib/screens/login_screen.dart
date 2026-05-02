@@ -2,6 +2,7 @@
 /// Login — Fixmyitch minimal.
 library;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -73,7 +74,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             Expanded(
                                 flex: 10,
                                 child:
-                                    _AuthRight(isLoading: isLoading, ref: ref)),
+                                    _AuthRight(isLoading: isLoading, ref: ref, emailController: _emailController, passwordController: _passwordController)),
                           ],
                         ),
                       )
@@ -81,7 +82,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         children: [
                           _AuthLeft(),
                           Container(height: 1, color: AppColors.outline),
-                          _AuthRight(isLoading: isLoading, ref: ref),
+                          _AuthRight(isLoading: isLoading, ref: ref, emailController: _emailController, passwordController: _passwordController),
                         ],
                       ),
               ),
@@ -408,8 +409,15 @@ class _StatBlock extends StatelessWidget {
 class _AuthRight extends StatefulWidget {
   final bool isLoading;
   final WidgetRef ref;
+  final TextEditingController emailController;
+  final TextEditingController passwordController;
 
-  const _AuthRight({required this.isLoading, required this.ref});
+  const _AuthRight({
+    required this.isLoading,
+    required this.ref,
+    required this.emailController,
+    required this.passwordController,
+  });
 
   @override
   State<_AuthRight> createState() => _AuthRightState();
@@ -553,6 +561,7 @@ class _AuthRightState extends State<_AuthRight> with TickerProviderStateMixin {
                 ),
                 SizedBox(height: 6),
                 TextField(
+                  controller: widget.emailController,
                   enabled: !widget.isLoading,
                   style: GoogleFonts.inter(
                     fontSize: 14,
@@ -606,6 +615,7 @@ class _AuthRightState extends State<_AuthRight> with TickerProviderStateMixin {
                 ),
                 SizedBox(height: 6),
                 TextField(
+                  controller: widget.passwordController,
                   enabled: !widget.isLoading,
                   obscureText: true,
                   style: GoogleFonts.inter(
@@ -649,9 +659,19 @@ class _AuthRightState extends State<_AuthRight> with TickerProviderStateMixin {
             child: _AnimatedButton(
               onTap: widget.isLoading
                   ? null
-                  : () => widget.ref
-                      .read(signInProvider.notifier)
-                      .signInWithGoogle(),
+                  : () {
+                      final email = widget.emailController.text.trim();
+                      final password = widget.passwordController.text.trim();
+                      if (email.isEmpty || password.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Email and password required')),
+                        );
+                        return;
+                      }
+                      widget.ref
+                          .read(signInProvider.notifier)
+                          .signInWithEmail(email, password);
+                    },
               isLoading: widget.isLoading,
               isPrimary: false,
               child: Text(
@@ -690,6 +710,19 @@ class _AuthRightState extends State<_AuthRight> with TickerProviderStateMixin {
                             decoration: TextDecoration.underline,
                             decorationColor: Colors.transparent,
                           ),
+                          recognizer: TapGestureRecognizer()
+                            ..onTap = () {
+                              if (widget.isLoading) return;
+                              final email = widget.emailController.text.trim();
+                              final password = widget.passwordController.text.trim();
+                              if (email.isEmpty || password.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Email and password required')),
+                                );
+                                return;
+                              }
+                              widget.ref.read(signInProvider.notifier).signUpWithEmail(email, password);
+                            },
                         ),
                       ],
                     ),

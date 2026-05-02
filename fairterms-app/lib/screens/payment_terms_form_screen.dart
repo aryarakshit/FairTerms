@@ -371,9 +371,11 @@ class _DesktopLayout extends StatelessWidget {
                       label: 'Buyer / Company Name *',
                       hint: 'e.g., Reliance Industries Ltd.',
                       controller: buyerNameCtrl,
-                      validator: (v) => (v == null || v.trim().isEmpty)
-                          ? 'Buyer name is required'
-                          : null,
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return 'Buyer name is required';
+                        if (v.trim().length < 3) return 'Enter at least 3 characters';
+                        return null;
+                      },
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
@@ -431,6 +433,7 @@ class _DesktopLayout extends StatelessWidget {
                               if (v == null || v.trim().isEmpty) return 'Required';
                               final n = int.tryParse(v);
                               if (n == null || n <= 0) return 'Enter valid days';
+                              if (n > 365) return 'Max 365 days';
                               return null;
                             },
                           ),
@@ -450,6 +453,7 @@ class _DesktopLayout extends StatelessWidget {
                               if (v == null || v.trim().isEmpty) return 'Required';
                               final n = int.tryParse(v.replaceAll(',', ''));
                               if (n == null || n <= 0) return 'Enter valid amount';
+                              if (n > 1000000000) return 'Max ₹100 crore';
                               return null;
                             },
                           ),
@@ -488,6 +492,7 @@ class _DesktopLayout extends StatelessWidget {
                               if (v == null || v.trim().isEmpty) return 'Required';
                               final n = int.tryParse(v);
                               if (n == null || n < 0) return 'Enter valid days';
+                              if (n > 365) return 'Max 365 days';
                               return null;
                             },
                           ),
@@ -608,9 +613,11 @@ class _MobileLayout extends StatelessWidget {
                     label: 'Buyer / Company Name *',
                     hint: 'e.g., Reliance Industries Ltd.',
                     controller: buyerNameCtrl,
-                    validator: (v) => (v == null || v.trim().isEmpty)
-                        ? 'Buyer name is required'
-                        : null,
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return 'Buyer name is required';
+                      if (v.trim().length < 3) return 'Enter at least 3 characters';
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
@@ -664,6 +671,7 @@ class _MobileLayout extends StatelessWidget {
                       if (v == null || v.trim().isEmpty) return 'Required';
                       final n = int.tryParse(v);
                       if (n == null || n <= 0) return 'Enter valid days';
+                      if (n > 365) return 'Max 365 days';
                       return null;
                     },
                   ),
@@ -679,6 +687,7 @@ class _MobileLayout extends StatelessWidget {
                       if (v == null || v.trim().isEmpty) return 'Required';
                       final n = int.tryParse(v.replaceAll(',', ''));
                       if (n == null || n <= 0) return 'Enter valid amount';
+                      if (n > 1000000000) return 'Max ₹100 crore';
                       return null;
                     },
                   ),
@@ -711,6 +720,7 @@ class _MobileLayout extends StatelessWidget {
                       if (v == null || v.trim().isEmpty) return 'Required';
                       final n = int.tryParse(v);
                       if (n == null || n < 0) return 'Enter valid days';
+                      if (n > 365) return 'Max 365 days';
                       return null;
                     },
                   ),

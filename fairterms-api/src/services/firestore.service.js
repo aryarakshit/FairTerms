@@ -89,6 +89,23 @@ if (!USE_MOCK_FIRESTORE) {
 }
 
 /**
+ * Converts Firestore Timestamps to ISO strings for JSON serialization.
+ */
+function _serializeDoc(docData) {
+  if (!docData) return docData;
+  const serialized = { ...docData };
+  for (const [key, value] of Object.entries(serialized)) {
+    if (value && typeof value === 'object' && value.toDate && typeof value.toDate === 'function') {
+      serialized[key] = value.toDate().toISOString();
+    } else if (value && typeof value === 'object' && value._seconds !== undefined) {
+      // Handle case where it might already be a plain object with _seconds
+      serialized[key] = new Date(value._seconds * 1000).toISOString();
+    }
+  }
+  return serialized;
+}
+
+/**
  * Saves or updates an SME profile.
  */
 async function saveSMEProfile(profileId, profileData) {
@@ -113,6 +130,10 @@ async function saveSMEProfile(profileId, profileData) {
 
   if (profileId) {
     const docRef = db.collection('sme_profiles').doc(profileId);
+    const doc = await docRef.get();
+    if (doc.exists && !doc.data().created_at) {
+      data.created_at = admin.firestore.FieldValue.serverTimestamp();
+    }
     await docRef.set(data, { merge: true });
     return profileId;
   } else {
@@ -132,7 +153,7 @@ async function getSMEProfile(profileId) {
   }
   const doc = await db.collection('sme_profiles').doc(profileId).get();
   if (!doc.exists) return null;
-  return { profile_id: doc.id, ...doc.data() };
+  return _serializeDoc({ profile_id: doc.id, ...doc.data() });
 }
 
 /**
@@ -161,9 +182,18 @@ async function getProfileByUserId(userId) {
     .orderBy('created_at', 'desc')
     .limit(1)
     .get();
-  if (snapshot.empty) return null;
+  if (snapshot.empty) {
+    // Fallback search without order if no created_at exists on old records
+    const fallback = await db.collection('sme_profiles')
+      .where('user_id', '==', userId)
+      .limit(1)
+      .get();
+    if (fallback.empty) return null;
+    const doc = fallback.docs[0];
+    return _serializeDoc({ profile_id: doc.id, ...doc.data() });
+  }
   const doc = snapshot.docs[0];
-  return { profile_id: doc.id, ...doc.data() };
+  return _serializeDoc({ profile_id: doc.id, ...doc.data() });
 }
 
 /**

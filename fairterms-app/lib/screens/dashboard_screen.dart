@@ -27,25 +27,13 @@ class DashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
-  bool _checkingProfile = true;
-
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted) return;
-      // Refresh history on every dashboard mount.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Refresh history and profile on every dashboard mount.
       ref.invalidate(analysisHistoryProvider);
-      // Resolve profile ID for returning users whose in-memory provider is empty.
-      if (ref.read(activeProfileIdProvider).valueOrNull == null) {
-        try {
-          final profile = await ApiService.instance.getMyProfile();
-          if (profile?.profileId != null && mounted) {
-            ref.read(activeProfileIdProvider.notifier).setId(profile!.profileId!);
-          }
-        } catch (_) {}
-      }
-      if (mounted) setState(() => _checkingProfile = false);
+      ref.invalidate(myProfileProvider);
     });
   }
 
@@ -61,14 +49,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget build(BuildContext context) {
     final userName = AuthService.instance.currentUserDisplayName;
     final firstName = userName.split(' ').first;
+    
+    final profileAsync = ref.watch(myProfileProvider);
     final historyAsync = ref.watch(analysisHistoryProvider);
+    
     final screenSize = MediaQuery.of(context).size;
     final isMobile = screenSize.width <= 900;
     final isGuest = ref.watch(guestModeProvider);
-    final profileIdAsync = ref.watch(activeProfileIdProvider);
-    final profileId = profileIdAsync.valueOrNull;
-    final authState = ref.watch(authStateProvider);
-    final isNewUser = !isGuest && authState.value != null && profileId == null && !_checkingProfile && !profileIdAsync.isLoading;
+    
+    final profile = profileAsync.valueOrNull;
+    final isNewUser = !isGuest && !profileAsync.isLoading && profile == null;
+    
+    // Greeting name: Use business name if available, else first name
+    final greetingName = profile?.businessName ?? firstName;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -206,7 +199,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           children: [
                             TextSpan(text: '${_greeting()}, '),
                             TextSpan(
-                              text: firstName,
+                              text: greetingName,
                               style: TextStyle(
                                 fontStyle: FontStyle.italic,
                                 color: AppColors.primary,
@@ -221,7 +214,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     _FadeSlideIn(
                       delay: Duration(milliseconds: 80),
                       child: Text(
-                        'You have 3 analyses this month. One buyer is currently flagged for late payment.',
+                        profile != null
+                            ? 'Displaying fairness metrics for ${profile.businessName} in the ${profile.industry} sector.'
+                            : 'You have 3 analyses this month. One buyer is currently flagged for late payment.',
                         style: TextStyle(
                           color: AppColors.inkFaint,
                           fontSize: 15,
@@ -365,42 +360,57 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     SizedBox(height: 48),
 
                     // Metrics grid
-                    _FadeSlideIn(
-                      delay: Duration(milliseconds: 240),
-                      child: GridView.count(
-                        crossAxisCount: isMobile ? 2 : 4,
-                        crossAxisSpacing: 16,
-                        mainAxisSpacing: 16,
-                        shrinkWrap: true,
-                        physics: NeverScrollableScrollPhysics(),
-                        childAspectRatio: isMobile ? 1.6 : 1.8,
-                        children: [
-                          _MetricCard(
-                            label: 'YOUR FAIRNESS SCORE',
-                            value: '68',
-                            delta: '↑ 4 vs last month',
-                            isDelta: true,
+                    historyAsync.when(
+                      data: (realAnalyses) {
+                        final completed = realAnalyses.where((a) => a.isCompleted).toList();
+                        final avgScore = completed.isEmpty
+                            ? 0
+                            : (completed.fold<int>(0, (sum, a) => sum + (a.fairnessScore ?? 0)) / completed.length).round();
+                        
+                        // Fake deltas for now if no history, else 0
+                        final scoreVal = isGuest ? '68' : avgScore.toString();
+                        final countVal = isGuest ? '12' : realAnalyses.length.toString();
+
+                        return _FadeSlideIn(
+                          delay: Duration(milliseconds: 240),
+                          child: GridView.count(
+                            crossAxisCount: isMobile ? 2 : 4,
+                            crossAxisSpacing: 16,
+                            mainAxisSpacing: 16,
+                            shrinkWrap: true,
+                            physics: NeverScrollableScrollPhysics(),
+                            childAspectRatio: isMobile ? 1.6 : 1.8,
+                            children: [
+                              _MetricCard(
+                                label: 'YOUR FAIRNESS SCORE',
+                                value: scoreVal,
+                                delta: isGuest ? '↑ 4 vs last month' : 'Sector average: 62',
+                                isDelta: isGuest || avgScore > 62,
+                              ),
+                              _MetricCard(
+                                label: 'CONTRACTS ANALYSED',
+                                value: countVal,
+                                delta: isGuest ? '↑ 3 this week' : 'Total scanned',
+                                isDelta: true,
+                              ),
+                              _MetricCard(
+                                label: 'INTEREST OWED (MSMED)',
+                                value: isGuest ? '₹48k' : '₹0',
+                                delta: isGuest ? 'Due in 14 days' : 'No overdue flagged',
+                                isDelta: false,
+                              ),
+                              _MetricCard(
+                                label: 'FLAGGED BUYERS',
+                                value: isGuest ? '2' : completed.where((a) => (a.fairnessScore ?? 100) < 41).length.toString(),
+                                delta: isGuest ? 'Review recommended' : 'Severe bias detected',
+                                isDelta: false,
+                              ),
+                            ],
                           ),
-                          _MetricCard(
-                            label: 'CONTRACTS ANALYSED',
-                            value: '12',
-                            delta: '↑ 3 this week',
-                            isDelta: true,
-                          ),
-                          _MetricCard(
-                            label: 'INTEREST OWED (MSMED)',
-                            value: '₹48k',
-                            delta: 'Due in 14 days',
-                            isDelta: false,
-                          ),
-                          _MetricCard(
-                            label: 'FLAGGED BUYERS',
-                            value: '2',
-                            delta: 'Review recommended',
-                            isDelta: false,
-                          ),
-                        ],
-                      ),
+                        );
+                      },
+                      loading: () => const SizedBox(height: 140),
+                      error: (_, __) => const SizedBox(height: 140),
                     ),
                     SizedBox(height: 56),
 
